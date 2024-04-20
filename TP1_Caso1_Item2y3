@@ -1,0 +1,89 @@
+clc, clear all, close all;
+
+%Busca los valores de la tabla
+valores=xlsread('D:\Carpeta datos\Escritorio\Manu\Control 2\2024\Pucheta\TP1\Curvas_Medidas_RLC_2024.xls'); 
+
+%Donde las columnas son Tiempo(t) Corriente(I) Tensíon del Capacitor (Vc)
+%Declaro que es cada columna
+t=valores(1:end,1);
+I=valores(1:end,2);
+Vc=valores(1:end,3);
+
+%Grafico de tensión
+subplot(2,1,1);plot(t,Vc,'b');grid on; title('Tensión');
+ 
+y1=valores(111,3);
+t1=valores(111,1);
+y2=valores(121,3);
+t2=valores(121,1);
+y3=valores(131,3);
+t3=valores(131,1);
+hold on;plot([t1 t2 t3],[y1,y2,y3],'ok')
+
+%Definicion de la entrada
+u=zeros(1,1000);
+paso=0.1/1000;
+t=0:paso:(0.1-paso);
+
+signo=true;
+for i=100:1:1000
+    if mod(i,500)==0
+       signo=not(signo);
+    end
+    if signo==1
+        u(1,i)=12;
+    end
+    if signo==0
+        u(1,i)=-12;
+    end
+
+end
+%Ganancia de corriente
+k=12;
+
+%Defino las k de cada punto
+k1= (y1/k) - 1;
+k2= (y2/k) - 1;
+k3= (y3/k) - 1;
+
+%Segun las ecuaciones de Chen
+b=4*k1^3*k3-3*k1^2*k2^2-4*k2^3+k3^2+6*k1*k2*k3;
+
+alfa1=(k1*k2+k3-sqrt(b))/(2*(k1^2+k2));
+alfa2=(k1*k2+k3+sqrt(b))/(2*(k1^2+k2));
+beta=(2*k1^3+3*k1*k2+k3-sqrt(b))/(sqrt(b));
+
+%Con estas variables calculo
+T1= -0.001/log(alfa1);
+T2= -0.001/log(alfa2);
+T3= (beta*(T1-T2))+T1; %No hay cero, no se usa
+
+%Hago la nueva funcion de transferencia de tensión
+G=tf(k,conv([T1 1],[T2 1]))
+ 
+%Funcion que comparamos en Tensión
+[yaprox,taprox]=lsim(G,u/12,t);
+hold on;
+plot(taprox,yaprox,'m'); title('Tensión estimada');
+legend({'Vc(t) aproximada','Puntos seleccionados','Vc(t) real'},'Location','southeast')
+
+%De la función de transferencia sacamos
+L=0.1;
+R=272.68;
+Cap=9.865e-6;
+
+%Matrices
+A=[-R/L -1/L; 1/Cap 0];
+B=[1/L; 0];
+C=[1; 0]';
+D=0;
+ 
+%Definicion de la ecuación de estado y de salida (salida de corriente)
+G1=ss(A,B,C,D);
+
+[yout,yt]=lsim(G1,u,t);
+subplot(2,1,2);plot(yt,yout,'b');grid on; 
+hold on;
+plot(valores(:,1),valores(:,2),'r');
+title('Comparación corriente estimada con corriente dada');
+legend({'i(t) aproximada','i(t) real'},'Location','southeast')  
