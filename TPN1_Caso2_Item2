@@ -108,50 +108,6 @@ for j=1869000:1:ts/deltat
 
 end 
 
-% %Segunda subida
-% %wr_Tl
-% ti=0.3372;
-% x1j = 198.25-datos(31935,2); y1j = datos(31935,1);
-% x2j = 198.25-datos(31940,2); y2j = datos(31940,1);
-% x3j = 198.25-datos(31945,2); y3j = datos(31945,1);
-%  
-% %ALGORITMO DE CHEN para aproximación de FT de la forma
-% %G(s)=K*(T3*s+1)/((T1*s+1)*(T2*s+1))
-% Kj = 153.4;
-% 
-% k1j = x1j/Kj-1;
-% k2j = x2j/Kj-1; 
-% k3j = x3j/Kj-1; 
-% 
-% bj = 4*k1j^3*k3j-3*k1j^2*k2j^2-4*k2j^3+k3j^2+6*k1j*k2j*k3j;
-% alfa1j = (k1j*k2j+k3j-sqrt(bj))/(2*(k1j^2+k2j));
-% alfa2j = (k1j*k2j+k3j+sqrt(bj))/(2*(k1j^2+k2j));
-% betaj = (2*k1j^3+3*k1j*k2j+k3j-sqrt(bj))/(sqrt(bj));
-% 
-% T1j = -0.001/log(alfa1j);
-% T2j = -0.001/log(alfa2j);
-% T3j = betaj*(T1j-T2j)+T1j;
-% 
-% s = tf('s');
-% Gj = Kj/((T1j*s+1)*(T2j*s+1));
-% [numj,denj] = tfdata(Gj,'v');
-% numj = numj/0.075;
-% 
-% ut2 = zeros(1,ts/deltat);
-% 
-% for j=0.3372/deltat:1:ts/deltat
-%     
-%     ut2(1,j)=1;
-% 
-% end
-% 
-% figure
-% [ytaprox2 ttaprox2] = lsim(-Gj,ut2,t); 
-% plot(ttaprox2,ytaprox2);title('Funcion aproximada');
-% xlabel('Tiempo');
-% ylabel('wr');
-% title('Respuesta de la función de transferencia aproximada con entrada de torque');
-
 figure
 [ytaproxl ttaproxl] = lsim(-Gi,utl,t); 
 plot(ttaproxl,ytaproxl);title('Funcion aproximada');
