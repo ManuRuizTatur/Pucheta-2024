@@ -1,0 +1,170 @@
+clc; close all; clear all
+
+%TP 1 - CASO 2.2 
+
+
+%Leo los datos del Excel
+datos = xlsread('D:\Carpeta datos\Escritorio\Manu\Control 2\2024\Pucheta\TP1\Curvas_Medidas_Motor_2024.xls');
+%Las columnas son Tiempo(t), velocidad angular(wr), corriente de armadura (ia)
+
+%Defino un escalon para la simulacion
+ts = 0.6;                 %tiempo de simulacion
+deltat = 10^-7;           %delta t
+Va = zeros(1,ts/deltat);
+
+for i=200000:1:6000000
+    
+    Va(1,i)=12;
+    
+end
+
+%ALGORITMO DE CHEN para aproximación de FT de la forma
+%G(s)=K*(T3*s+1)/((T1*s+1)*(T2*s+1))
+
+% Tomo 3 puntos equidistantes (velocidad angular)
+ti = 0.03515;
+x1 = datos(706,2); y1 = 0.0353;
+x2 = datos(721,2); y2 = 0.03605;
+x3 = datos(736,2); y3 = 0.0368;
+
+% Valor en régimen
+K = 198.248802;
+
+% Defino 3 k correspondientes a las 3 ecuaciones para los 3 puntos tomados
+k1 = x1/K-1;
+k2 = x2/K-1; 
+k3 = x3/K-1;
+
+%Despejo de las ecuaciones alfa 1, alfa 2 y beta
+b = 4*k1^3*k3-3*k1^2*k2^2-4*k2^3+k3^2+6*k1*k2*k3; %EC 23 Chen
+alfa1 = (k1*k2+k3-sqrt(b))/(2*(k1^2+k2)); %EC 21 Chen
+alfa2 = (k1*k2+k3+sqrt(b))/(2*(k1^2+k2)); %EC 22 Chen
+beta = (2*k1^3+3*k1*k2+k3-sqrt(b))/(sqrt(b)); %EC 20 Chen
+
+%Sustituyendo EC 21 y EC 24 en EC 19 obtengo el cero y ambos polos
+T1 = -0.001/log(alfa1);
+T2 = -0.001/log(alfa2);
+T3 = beta*(T1-T2)+T1; %No hay cero, no se usa
+
+%Funcion de transferencia obtenida por Chen
+s = tf('s');
+G = K/((T1*s+1)*(T2*s+1));
+[num,den] = tfdata(G,'v');
+num = num/12;
+
+
+%Defino un escalon para la simulacion
+t = 0:deltat:(0.6-deltat);
+u = zeros(1,ts/deltat);
+
+for j=0.03515/deltat:1:ts/deltat
+
+    u(1,j) = 1;
+    
+end
+
+% Graficas
+figure
+[yaprox taprox] = lsim(G,u,t); title('Funcion calculada'); plot(taprox,yaprox);
+xlabel('Tiempo');
+ylabel('wr');
+title('Respuesta de la función de transferencia aproximada con entrada de tensión');
+figure
+hold on; plot(datos(:,1),datos(:,2),'r'); title('Funcion real');
+ 
+%wr_Tl
+ti=0.1869;
+x1i = 198.25-datos(16681,2); y1i = datos(16681,1);
+x2i = 198.25-datos(16691,2); y2i = datos(16691,1);
+x3i = 198.25-datos(16701,2); y3i = datos(16701,1);
+ 
+%ALGORITMO DE CHEN para aproximación de FT de la forma
+%G(s)=K*(T3*s+1)/((T1*s+1)*(T2*s+1))
+Ki = 33.4;
+
+k1i = x1i/Ki-1;
+k2i = x2i/Ki-1; 
+k3i = x3i/Ki-1; 
+
+bi = 4*k1i^3*k3i-3*k1i^2*k2i^2-4*k2i^3+k3i^2+6*k1i*k2i*k3i;
+alfa1i = (k1i*k2i+k3i-sqrt(bi))/(2*(k1i^2+k2i));
+alfa2i = (k1i*k2i+k3i+sqrt(bi))/(2*(k1i^2+k2i));
+betai = (2*k1i^3+3*k1i*k2i+k3i-sqrt(bi))/(sqrt(bi));
+
+T1i = -0.001/log(alfa1i);
+T2i = -0.001/log(alfa2i);
+T3i = betai*(T1i-T2i)+T1i;
+
+s = tf('s');
+Gi = Ki/((T1i*s+1)*(T2i*s+1));
+[numi,deni] = tfdata(Gi,'v');
+numi = numi/0.075;
+
+utl = zeros(1,ts/deltat);
+
+for j=1869000:1:ts/deltat
+    
+    utl(1,j)=1;
+
+end 
+
+% %Segunda subida
+% %wr_Tl
+% ti=0.3372;
+% x1j = 198.25-datos(31935,2); y1j = datos(31935,1);
+% x2j = 198.25-datos(31940,2); y2j = datos(31940,1);
+% x3j = 198.25-datos(31945,2); y3j = datos(31945,1);
+%  
+% %ALGORITMO DE CHEN para aproximación de FT de la forma
+% %G(s)=K*(T3*s+1)/((T1*s+1)*(T2*s+1))
+% Kj = 153.4;
+% 
+% k1j = x1j/Kj-1;
+% k2j = x2j/Kj-1; 
+% k3j = x3j/Kj-1; 
+% 
+% bj = 4*k1j^3*k3j-3*k1j^2*k2j^2-4*k2j^3+k3j^2+6*k1j*k2j*k3j;
+% alfa1j = (k1j*k2j+k3j-sqrt(bj))/(2*(k1j^2+k2j));
+% alfa2j = (k1j*k2j+k3j+sqrt(bj))/(2*(k1j^2+k2j));
+% betaj = (2*k1j^3+3*k1j*k2j+k3j-sqrt(bj))/(sqrt(bj));
+% 
+% T1j = -0.001/log(alfa1j);
+% T2j = -0.001/log(alfa2j);
+% T3j = betaj*(T1j-T2j)+T1j;
+% 
+% s = tf('s');
+% Gj = Kj/((T1j*s+1)*(T2j*s+1));
+% [numj,denj] = tfdata(Gj,'v');
+% numj = numj/0.075;
+% 
+% ut2 = zeros(1,ts/deltat);
+% 
+% for j=0.3372/deltat:1:ts/deltat
+%     
+%     ut2(1,j)=1;
+% 
+% end
+% 
+% figure
+% [ytaprox2 ttaprox2] = lsim(-Gj,ut2,t); 
+% plot(ttaprox2,ytaprox2);title('Funcion aproximada');
+% xlabel('Tiempo');
+% ylabel('wr');
+% title('Respuesta de la función de transferencia aproximada con entrada de torque');
+
+figure
+[ytaproxl ttaproxl] = lsim(-Gi,utl,t); 
+plot(ttaproxl,ytaproxl);title('Funcion aproximada');
+xlabel('Tiempo');
+ylabel('wr');
+title('Respuesta de la función de transferencia aproximada con entrada de torque');
+
+%Comparacion
+figure
+plot(t,yaprox+ytaproxl);
+hold on;
+plot(datos(:,1),datos(:,2),'r');
+legend({'Aproximación','Real'},'Location','Northeast');
+xlabel('Tiempo');
+ylabel('wr');
+title('Comparación entre aproximación y realidad');
