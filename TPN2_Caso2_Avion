@@ -1,0 +1,137 @@
+clc;clear;
+
+%Paso, tiempo de simulacion:
+At = 0.01/10;
+tF = 70;
+pasos = tF/At; %Kmax=pasos
+Ts = 0.001;
+
+x_hat = [0; 0 ;0; 0];
+
+%Asignaciones
+t = 0:At:tF;
+alfa = zeros(1,pasos);
+fi = zeros(1,pasos);
+fip = zeros(1,pasos);
+
+h = zeros(1,pasos);
+u = linspace(0,0,pasos+1);
+
+%Parametros Avion
+omega = 9;  %Frecuencia natural
+a = 0.07;
+b = 5;
+c = 150;    %Velocidad
+
+%Definicion de Variables
+% href=100;       %Caso 1
+href=-100;     %Caso 2
+
+%Condiciones Iniciales
+alfa(1) = 0;
+fi(1) = 0;
+fip(1) = 0;
+% h(1) = -500;    %Caso 1
+h(1) = 500;    %Caso 2
+u(1) = 0;
+
+i = 1;
+
+%Matrices
+Mat_Ac =    [-a        a    0   0;
+              0        0    1   0;
+           omega^2 -omega^2 0   0;
+              c        0    0   0];
+          
+Mat_Bc = [0;  0;  (omega^2)*b;  0];
+
+Mat_C = [0 0 0 1];                  %La salida es la altura
+
+sys_c = ss(Mat_Ac,Mat_Bc,Mat_C,[0]);
+sys_d = c2d(sys_c,Ts,'zoh');
+
+Mat_A = sys_d.a;
+Mat_B = sys_d.b;
+
+Mat_M = [Mat_B Mat_A*Mat_B Mat_A^2*Mat_B Mat_A^3*Mat_B];
+
+Autovalores = eig(Mat_Ac);
+
+%DEFINIMOS LOS INTEGRADORES Y LOS SETEAMOS A 0:
+alfap = 0:At:tF;
+fip = 0:At:tF;
+fipp = 0:At:tF;
+hp = 0:At:tF;
+
+%---------------------LQR SIN OBSERVADOR--------------
+Q = [1      0       0       0;          %Trayectoria de vuelo
+     0     100      0       0;          %Angulo de cabeceo
+     0      0   100000000   0;          %Variacion angulo cabeceo
+     0      0       0      50];         %Altura
+
+
+R = 10;                         %Dimensionamos la accion de control para que sea pequeña
+K = dlqr(Mat_A, Mat_B, Q, R);
+
+%-------------------OBSERVADOR-------------------------
+Mat_Ao = Mat_A';
+Mat_Bo = Mat_C';
+Mat_Co = Mat_B';
+
+%----------------LQR CON OBSERVADOR---------------------
+Qo = [0.0000001      0         0         0;          %Trayectoria de vuelo
+     0          0.000001      0         0;          %Angulo de cabeceo
+     0              0     0.000001      0;          %Variacion angulo cabeceo
+     0              0         0      15000];        %Altura
+
+Ro = 100;
+
+Ko = (dlqr(Mat_Ao,Mat_Bo,Qo,Ro))';
+
+%----------GANANCIA DE PREALIMENTACION---------------
+G = inv(Mat_C*inv(eye(4)-Mat_A+Mat_B*K)*Mat_B);
+
+
+%---------------SIMULACION---------------------------
+while(i<(pasos+1))
+    x = [alfa(i);fi(i);fip(i);h(i)];
+    
+    %Ley de control
+    u(i) = -K*x+G*href; %Sin observador
+    % u(i) = -K*x_hat+G*href; %Con observador
+    
+    zona_muerta = 0.02;
+
+    %--------------ZONA MUERTA-----------------
+    if(abs(u(i))<zona_muerta)
+        u(i) = 0;
+    else
+        u(i) = sign(u(i))*(abs(u(i))-zona_muerta);
+    end
+    %-------------------------------------------
+
+    % EDOS, Sistema Real:
+    alfap = a*(fi(i)-alfa(i));
+    fipp = -omega^2*(fi(i) - alfa(i) - b*u(i));
+    hp = c*alfa(i);
+    y_sal = Mat_C*x;
+    y_sal_o=Mat_C*x_hat;
+    x_hat = Mat_A*x_hat+Mat_B*u(i)+Ko*(y_sal - y_sal_o);
+    
+    %INTEGRO POR EULER:
+    alfa(i+1) = alfa(i) + alfap*At;
+    fip(i+1) = fip(i)+fipp*At;
+    fi(i+1) = fi(i) + fip(i)*At;
+    h(i+1) = h(i) + hp*At;
+    y_sal(i)=Mat_C*x;
+    i=i+1;
+end
+
+%Graficos
+color = 'r';
+
+figure(1);hold on;
+subplot(3,2,1);plot(t,alfa,color);title('\alpha -Trayectoria de vuelo-');hold on;grid on;
+subplot(3,2,2);plot(t,fi,color);title('\phi -Angulo de Cabeceo-');hold on;grid on;
+subplot(3,2,[3,4]);plot(t,u,color);title('u');grid on;title('Accion de control');hold on;grid on;
+subplot(3,2,[5,6]);plot(t,h,color);title('Altura(500 a -100)');hold on;grid on;xlabel('Tiempo[s]');
